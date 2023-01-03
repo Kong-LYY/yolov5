@@ -175,6 +175,9 @@ def feature_visualization(x, module_type, stage, n=32, save_dir=Path('runs/detec
     """
     if 'Detect' not in module_type:
         batch, channels, height, width = x.shape  # batch, channels, height, width
+
+        print('width:', width)
+        print('channels:',channels)
         if height > 1 and width > 1:
             f = save_dir / f"stage{stage}_{module_type.split('.')[-1]}_features.png"  # filename
 

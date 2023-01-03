@@ -1,0 +1,9 @@
+
+path: /data/2D-detection/yolov5/dataset/scratch_lack_fingerprint_data # 训练数据路径
+train: images/train  # 训练图片
+val: images/val  # 评估图片
+test:  # 
+
+# Classes
+nc: 3  # 缺陷类别
+names: ['lack','scratch','fingerprint']  # 
