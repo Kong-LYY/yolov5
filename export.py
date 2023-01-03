@@ -489,12 +489,12 @@ def add_tflite_metadata(file, metadata, num_outputs):
 
 @smart_inference_mode()
 def run(
-        data=ROOT / 'data/coco128.yaml',  # 'dataset.yaml path'
-        weights=ROOT / 'yolov5s.pt',  # weights path
-        imgsz=(640, 640),  # image (height, width)
+        data=ROOT / 'data/detect_lack.yaml',  # 'dataset.yaml path'
+        weights=ROOT / 'runs/train/exp5/weights/best.pt',  # weights path
+        imgsz=(2112, 2112),  # image (height, width)
         batch_size=1,  # batch size
         device='cpu',  # cuda device, i.e. 0 or 0,1,2,3 or cpu
-        include=('torchscript', 'onnx'),  # include formats
+        include=('onnx'),  # include formats
         half=False,  # FP16 half-precision export
         inplace=False,  # set YOLOv5 Detect() inplace=True
         keras=False,  # use Keras
