@@ -4,6 +4,49 @@ import time
 import numpy as np 
 
 import torch
+
+
+def slice_single_image(img, sliceHeight=640, sliceWidth=640, overlap=0.2):
+
+    win_h, win_w = img.shape[:2]
+
+    # if slice sizes are large than image, pad the edges
+    if sliceHeight > win_h:
+        pad = sliceHeight - win_h
+    if sliceWidth > win_w:
+        pad = max(pad, sliceWidth - win_w)
+    
+    n_ims = 0
+    dx = int((1. - overlap) * sliceWidth)   # 153
+    dy = int((1. - overlap) * sliceHeight)
+
+    point_x = []
+    point_y = []
+
+    for y0 in range(0, img.shape[0], dy):
+        for x0 in range(0, img.shape[1], dx):
+            n_ims += 1
+            #
+            #这一步确保了不会出现比要切的图像小的图，其实是通过调整最后的overlop来实现的
+            #举例:h=6000,w=8192.若使用640来切图,overlop:0.2*640=128,间隔就为512.所以小图的左上角坐标的纵坐标y0依次为:
+            #:0,512,1024,....,5120,接下来并非为5632,因为5632+640>6000,所以y0=6000-640
+            if y0 + sliceHeight > img.shape[0]:
+                y = img.shape[0] - sliceHeight
+            else:
+                y = y0
+            if x0 + sliceWidth > img.shape[1]:
+                x = img.shape[1] - sliceWidth
+            else:
+                x = x0
+
+
+            point_x.append(x)
+            point_y.append(y)
+            # extract image
+            slice_img = img[y:y + sliceHeight, x:x + sliceWidth]
+    
+    
+    
 # 滑窗并保存
 def slice_single_image(image_path, save_name, outpath, is_save_imgs, sliceHeight=640, sliceWidth=640, overlap=0.2):
 
