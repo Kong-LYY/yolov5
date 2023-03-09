@@ -7,16 +7,17 @@ import torch
 import numpy as np
 
 FILE = Path(__file__).resolve()
-ROOT = FILE.parents[0]  # YOLOv5 root directory
+ROOT = FILE.parents[0]  
 if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))  # add ROOT to PATH
 ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
 
 from models.common import DetectMultiBackend
-from utils.general import (check_img_size, check_requirements, cv2,
-                           increment_path, non_max_suppression, print_args, scale_boxes, xyxy2xywh)
+from utils.general import (LOGGER, check_requirements, cv2,
+                           increment_path, non_max_suppression, print_args, scale_boxes, xyxy2xywh, xywh2xyxy)
 from utils.torch_utils import select_device, smart_inference_mode
 from utils.augmentations import letterbox
+from utils.plots import Annotator, colors
 
 
 @smart_inference_mode()
@@ -24,8 +25,8 @@ def run(
         weights=ROOT / 'yolov5s.pt',  # model path or triton URL
         source=ROOT / 'data/images',  # file/dir/URL/glob/screen/0(webcam)
         imgsz=(1280, 1280),  # inference size (height, width)
-        conf_thres=0.25,  # confidence threshold
-        iou_thres=0.45,  # NMS IOU threshold
+        conf_thres=0.2,  # confidence threshold
+        iou_thres=0.1,  # NMS IOU threshold
         device='',  # cuda device, i.e. 0 or 0,1,2,3 or cpu
         project=ROOT / 'runs/detect',  # save results to project/name
         name='exp',  # save results to project/name
@@ -41,16 +42,24 @@ def run(
     # Load model
     device = select_device(device)
     model = DetectMultiBackend(weights, device=device)
-
-    img_names = os.listdir(source)
-    for img_name in img_names :
-        img_path  = os.path.join(source, img_name)
-        save_name = img_name.split('.')[0]
-        txt_path = str(save_dir / 'labels' / save_name)  # im.txt
-        
-        # 单张小图推理
-        crop_infer(img_path = img_path, model = model, txt_path = txt_path, conf_thres = conf_thres, iou_thres = iou_thres) 
-            
+    idx = 0 
+    if os.path.isdir(source):
+        img_names = os.listdir(source)
+        for img_name in img_names :
+            img_path  = os.path.join(source, img_name)
+            save_name = img_name.split('.')[0]
+            txt_path  = str(save_dir / 'labels' / save_name)  # im.txt
+            save_path = str(save_dir /save_name)
+            # 单张小图推理
+            crop_infer(img_path = img_path, model = model, txt_path = txt_path, save_path = save_path, conf_thres = conf_thres, iou_thres = iou_thres) 
+            idx += 1
+            LOGGER.info(f"infer images number:{idx}, image name:{img_name}")
+    else:
+        # 推理单张图
+        txt_path  = str(save_dir / 'labels' / source.split('/')[-1].split('.')[0])
+        save_path = str(save_dir / source.split('/')[-1].split('.')[0])
+        crop_infer(img_path = source, model = model, txt_path = txt_path, save_path = save_path, conf_thres = conf_thres, iou_thres = iou_thres)
+ 
 # 滑窗裁剪
 def get_slice_xy_img(img, y0, x0, sliceWidth, sliceHeight):
     if y0 + sliceHeight > img.shape[0]:
@@ -81,14 +90,17 @@ def img_process(img, model, sliceHeight, sliceWidth):
 
     return im_infer, img0
 
-def crop_infer(img_path, model, txt_path, conf_thres, iou_thres, sliceHeight=1280, sliceWidth=1280, overlap=0.2):
+def crop_infer(img_path, model, txt_path, save_path, conf_thres, iou_thres, sliceHeight=1280, sliceWidth=1280, overlap=0.2, line_thickness=1):
     
     img = cv2.imread(img_path) # 读单张图
     win_h, win_w = img.shape[:2] # 大图高宽
 
     dx = int((1. - overlap) * sliceWidth)  
     dy = int((1. - overlap) * sliceHeight)
-
+    img_result = img.copy()
+    
+    annotator = Annotator(img_result, line_width=line_thickness, example=str(model.names))
+    real_gn   = torch.tensor(img_result.shape)[[1, 0, 1, 0]]
     for y0 in range(0, img.shape[0], dy):
         for x0 in range(0, img.shape[1], dx):
             x, y, slice_img= get_slice_xy_img(img, y0, x0, sliceWidth, sliceHeight) # 获取裁剪起点x, y 
@@ -110,15 +122,22 @@ def crop_infer(img_path, model, txt_path, conf_thres, iou_thres, sliceHeight=128
                         xywh[3] = (xywh[3] * sliceHeight) / win_h
                         line = (cls, *xywh, conf)  # label format
                         with open(f'{txt_path}.txt', 'a') as f:
-                            f.write(('%g ' * len(line)).rstrip() % line + '\n')
 
+                            f.write(('%g ' * len(line)).rstrip() % line + '\n')
+                        
+                        # 保存框结果到图像
+                        c = int(cls) 
+                        new_xywh = (xywh2xyxy((torch.tensor(xywh).view(1, 4))*real_gn)).view(-1).tolist()
+                        annotator.box_label(new_xywh, None, color=colors(c, True))
+    img_result = annotator.result()
+    cv2.imwrite(save_path + '.jpg', img_result)
                             
 def parse_opt():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--weights', nargs='+', type=str, default=ROOT / 'runs/train/1280_train_v5n6/weights/best.pt', help='model path or triton URL')
-    parser.add_argument('--source', type=str, default=ROOT / '/data/2D-detection/yolov5/dataset/orin_data_overpaint/2020-10-28-11-06-SG3-GDS-20-0030', help='file/dir/URL/glob/screen/0(webcam)')
+    parser.add_argument('--weights', nargs='+', type=str, default= ROOT / 'runs/train/2023-02-07-1280_train_v5n6_2class/weights/best.pt', help='model path or triton URL')
+    parser.add_argument('--source', type=str, default= ROOT / 'dataset/orin_data_overpaint/2021-08-13-15-40-SG3-WFL-18-0013/X01-Y05.jpg', help='file/dir/URL/glob/screen/0(webcam)')
     parser.add_argument('--imgsz', '--img', '--img-size', nargs='+', type=int, default=[1280], help='inference size h,w')
-    parser.add_argument('--conf-thres', type=float, default=0.5, help='confidence threshold')
+    parser.add_argument('--conf-thres', type=float, default=0.2, help='confidence threshold')
     parser.add_argument('--iou-thres', type=float, default=0.1, help='NMS IoU threshold')
     parser.add_argument('--device', default='', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
     parser.add_argument('--project', default=ROOT / 'runs/detect', help='save results to project/name')
