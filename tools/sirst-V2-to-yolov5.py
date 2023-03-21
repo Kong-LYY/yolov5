@@ -7,10 +7,11 @@ from os import listdir , getcwd
 from os.path import join
 import glob
 import cv2 as cv
+import numpy as np
  
 classes = ["Target",]
  
-def convert(size, box):
+def convert(id, size, box):
  
     dw = 1.0/size[0]
     dh = 1.0/size[1]
@@ -22,7 +23,17 @@ def convert(size, box):
     w = w*dw
     y = y*dh
     h = h*dh
-    return (x,y,w,h)
+    return [id,x,y,w,h]
+
+def write_line_value(fw, value):
+    fw.write(str(value[0]))
+    fw.write(' ')
+    str_value = np.round(value[1:], 4)
+    # fw.write(str_value)
+    for single_value in str_value:
+        fw.write(str(single_value))
+        fw.write(' ')
+    fw.write('\n') # 换行
  
 def convert_annotation(image_name, xml_name, txt_save_name, img_save_name):
 
@@ -40,7 +51,7 @@ def convert_annotation(image_name, xml_name, txt_save_name, img_save_name):
     h = int(size.find('height').text)
 
 
-    
+    fw = open(txt_save_name, 'w')
  
     for obj in root.iter('object'):
         cls = obj.find('name').text
@@ -49,11 +60,13 @@ def convert_annotation(image_name, xml_name, txt_save_name, img_save_name):
             continue
         cls_id = classes.index(cls)
         xmlbox = obj.find('bndbox')
+        if xmlbox is None:
+            continue
         b = (float(xmlbox.find('xmin').text), float(xmlbox.find('xmax').text), float(xmlbox.find('ymin').text),
              float(xmlbox.find('ymax').text))
-        bb = convert((w,h), b)
-        txt_save_name.write(str(cls_id) + " " + " ".join([str(a) for a in bb]) + '\n')
-
+        bb = convert(cls_id, (w,h), b)
+        write_line_value(fw, bb)
+    fw.close()
 def get_txt_value(name):
     # 获取txt值
     f = open(name)
@@ -74,19 +87,19 @@ def mk_dir(dir):
         os.makedirs(dir)
 
 def parse_sirst():
-
+    root = '/data/2D-detection/yolov5/'
     # 获取训练集，验证集，测试集名称
-    splits_path = '/data/yolov5/dataset/open-sirst-v2/splits'
+    splits_path = root + 'dataset/open-sirst-v2/splits'
     train_names = get_txt_value(os.path.join(splits_path, 'train_full.txt'))
     val_names   = get_txt_value(os.path.join(splits_path, 'val_full.txt'))
     test_names  = get_txt_value(os.path.join(splits_path, 'test_full.txt'))
 
     # 读取XML并解析
-    xml_path = '/data/yolov5/dataset/open-sirst-v2/annotations/bboxes'
-    img_path = '/data/yolov5/dataset/open-sirst-v2/mixed'
+    xml_path = root + 'dataset/open-sirst-v2/annotations/bboxes'
+    img_path = root + 'dataset/open-sirst-v2/mixed'
 
-    save_img_path = '/data/yolov5/dataset/sirst-v2-yolov5-dataset/images'
-    save_label_path = '/data/yolov5/dataset/sirst-v2-yolov5-dataset/labels'
+    save_img_path = root + 'dataset/sirst-v2-yolov5-dataset/images'
+    save_label_path = root + 'dataset/sirst-v2-yolov5-dataset/labels'
     mk_dir(save_img_path)
     mk_dir(save_label_path)
    
