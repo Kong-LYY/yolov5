@@ -18,6 +18,7 @@ from utils.general import (LOGGER, check_requirements, cv2,
 from utils.torch_utils import select_device, smart_inference_mode
 from utils.augmentations import letterbox
 from utils.plots import Annotator, colors
+import time
 
 
 @smart_inference_mode()
@@ -104,10 +105,13 @@ def crop_infer(img_path, model, txt_path, save_path, conf_thres, iou_thres, slic
     for y0 in range(0, img.shape[0], dy):
         for x0 in range(0, img.shape[1], dx):
             x, y, slice_img= get_slice_xy_img(img, y0, x0, sliceWidth, sliceHeight) # 获取裁剪起点x, y 
+
+            tic = time.time()
             im_infer, img0 = img_process(slice_img, model, sliceHeight, sliceWidth) # 图像预处理
             pred = model(im_infer) # 推理
             pred = non_max_suppression(pred, conf_thres, iou_thres, max_det=1000)
-
+            toc = time.time() - tic
+            print(toc)
             # 解析结果
             for i, det in enumerate(pred):
                 if len(det):                    
@@ -134,10 +138,10 @@ def crop_infer(img_path, model, txt_path, save_path, conf_thres, iou_thres, slic
                             
 def parse_opt():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--weights', nargs='+', type=str, default= ROOT / 'runs/train/2023-02-07-1280_train_v5n6_2class/weights/best.pt', help='model path or triton URL')
-    parser.add_argument('--source', type=str, default= ROOT / 'dataset/orin_data_overpaint/2021-08-13-15-40-SG3-WFL-18-0013/X01-Y05.jpg', help='file/dir/URL/glob/screen/0(webcam)')
+    parser.add_argument('--weights', nargs='+', type=str, default= ROOT / '/mnt/d/yolov5/data/Assets/Weights/2023-04-03-yolov5-4head-1280.onnx', help='model path or triton URL')
+    parser.add_argument('--source', type=str, default= ROOT / '/mnt/d/yolov5/data/Assets/big_img.png', help='file/dir/URL/glob/screen/0(webcam)')
     parser.add_argument('--imgsz', '--img', '--img-size', nargs='+', type=int, default=[1280], help='inference size h,w')
-    parser.add_argument('--conf-thres', type=float, default=0.2, help='confidence threshold')
+    parser.add_argument('--conf-thres', type=float, default=0.7, help='confidence threshold')
     parser.add_argument('--iou-thres', type=float, default=0.1, help='NMS IoU threshold')
     parser.add_argument('--device', default='', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
     parser.add_argument('--project', default=ROOT / 'runs/detect', help='save results to project/name')

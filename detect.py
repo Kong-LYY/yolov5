@@ -126,6 +126,7 @@ def run(
         with dt[1]:
             visualize = increment_path(save_dir / Path(path).stem, mkdir=True) if visualize else False
             pred = model(im, augment=augment, visualize=visualize)
+            print(pred.shape)
 
         # NMS
         with dt[2]:
@@ -222,8 +223,8 @@ def parse_opt():
     parser.add_argument('--source', type=str, default=ROOT / 'dataset/scratch_lack_fingerprint_data/images/val/finger_0007.jpg', help='file/dir/URL/glob/screen/0(webcam)')
     parser.add_argument('--data', type=str, default=ROOT / 'data/cdetect_lack.yaml', help='(optional) dataset.yaml path')
     parser.add_argument('--imgsz', '--img', '--img-size', nargs='+', type=int, default=[1280], help='inference size h,w')
-    parser.add_argument('--conf-thres', type=float, default=0.2, help='confidence threshold')
-    parser.add_argument('--iou-thres', type=float, default=0.2, help='NMS IoU threshold')
+    parser.add_argument('--conf-thres', type=float, default=0.7, help='confidence threshold')
+    parser.add_argument('--iou-thres', type=float, default=0.1, help='NMS IoU threshold')
     parser.add_argument('--max-det', type=int, default=1000, help='maximum detections per image')
     parser.add_argument('--device', default='', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
     parser.add_argument('--view-img', action='store_true', help='show results')
